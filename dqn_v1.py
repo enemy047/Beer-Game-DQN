@@ -10,6 +10,29 @@ from collections import deque
 # Beer Game Environment
 # ----------------------------
 
+
+
+class BaseStockAgent:
+    def __init__(self, target=12):
+        self.target = target
+
+    def act(self, state):
+        inventory, backlog, pipeline, _ = state
+        return max(0, int(self.target - inventory + backlog))
+
+class StermanAgent:
+    def __init__(self):
+        self.alpha = 0.3
+        self.beta = 0.2
+        self.last_order = 4
+
+    def act(self, state):
+        inventory, backlog, pipeline, _ = state
+        order = self.last_order + self.alpha * backlog - self.beta * inventory
+        order = max(0, int(order))
+        self.last_order = order
+        return order
+
 class BeerGame:
     def __init__(self, lead_time=2, holding_cost=0.5, backlog_cost=1.0, max_weeks=52):
         self.lead_time = lead_time
@@ -189,8 +212,16 @@ def reward_fn(game, p, order, prev_order):
 
 if __name__ == "__main__":
     env = BeerGame()
-    agent = SharedDQNAgent()
-    agent.load()
+
+    AGENT_TYPE = "dqn"   # change: "basestock", "sterman"
+
+    if AGENT_TYPE == "dqn":
+        agent = SharedDQNAgent()
+        agent.load()
+    elif AGENT_TYPE == "basestock":
+        agent = BaseStockAgent()
+    elif AGENT_TYPE == "sterman":
+        agent = StermanAgent()
 
     EPISODES = 3000
 
@@ -205,19 +236,23 @@ if __name__ == "__main__":
 
             done = env.step(orders)
 
-            for p in range(4):
-                r = reward_fn(env, p, orders[p], prev_orders[p])
-                agent.remember(
-                    states[p],
-                    orders[p],
-                    r,
-                    env.get_state(p),
-                    done
-                )
+            if AGENT_TYPE == "dqn":
+                for p in range(4):
+                    r = reward_fn(env, p, orders[p], prev_orders[p])
+                    agent.remember(
+                        states[p],
+                        orders[p],
+                        r,
+                        env.get_state(p),
+                        done
+                    )
 
-            agent.replay()
-            agent.decay()
+                agent.replay()
+                agent.decay()
 
         if ep % 100 == 0:
-            print(f"Episode {ep} | Total Cost: {env.total_cost} | ε={agent.epsilon:.3f}")
-            agent.save()
+            print(f"Episode {ep} | Total Cost: {env.total_cost}")
+
+            if AGENT_TYPE == "dqn":
+                print(f"ε = {agent.epsilon:.3f}")
+                agent.save()
