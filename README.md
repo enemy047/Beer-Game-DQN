@@ -1,3 +1,7 @@
+##DEPENDENCIES##
+To install dependencies:
+pip install -r requirements.txt
+
 Overview
 
 This repository contains two implementations of the Beer Game supply chain using Reinforcement Learning:
